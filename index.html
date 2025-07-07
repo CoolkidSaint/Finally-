@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WellCheck – KsTU</title>
+  <style>
+    :root {
+      --primary: #160F4F;
+      --accent: #BCA03D;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: start;
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 500px;
+      margin-top: 20px;
+    }
+    .header {
+      text-align: center;
+    }
+    .header img {
+      max-width: 100px;
+    }
+    h1 {
+      margin: 10px 0;
+      font-size: 1.5em;
+      color: var(--primary);
+    }
+    .question {
+      display: none;
+    }
+    .question.active {
+      display: block;
+    }
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:disabled {
+      background: #ccc;
+    }
+    #prevBtn {
+      background-color: var(--accent);
+      color: black;
+    }
+    input, select, textarea {
+      width: 100%;
+      margin: 8px 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .thank-you {
+      text-align: center;
+      padding: 20px;
+      color: green;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://kstu.edu.gh/sites/default/files/kstu_logo_0.png" alt="KsTU Logo">
+      <h1>WellCheck</h1>
+    </div>
+
+    <form id="surveyForm">
+      <div id="questionContainer"></div>
+      <div style="text-align:right">
+        <button type="button" id="prevBtn" style="display:none;">Previous</button>
+        <button type="button" id="nextBtn">Next</button>
+        <button type="submit" id="submitBtn" style="display:none">Submit</button>
+      </div>
+    </form>
+    <div class="thank-you" id="thankYouMessage">
+      <h2>Thank you!</h2>
+      <p>Your response has been saved successfully.</p>
+    </div>
+    <br>
+    <button onclick="downloadCSV()">Export to CSV</button>
+  </div>
+
+  <script>
+    const questions = [
+      { id: 'full_name', label: 'What is your full name?', type: 'text', required: true },
+      { id: 'student_id', label: 'Student ID (optional)', type: 'text', required: false },
+      { id: 'gender', label: 'What is your gender?', type: 'select', options: ['Male', 'Female', 'Prefer not to say'] },
+      { id: 'age', label: 'How old are you?', type: 'number' },
+      { id: 'session', label: 'Which session are you in?', type: 'select', options: ['Regular', 'Evening', 'Weekend', 'Distance Learning'] },
+      { id: 'residence', label: 'Where do you currently stay?', type: 'select', options: ['On-campus hostel', 'Off-campus hostel', 'With family', 'Alone'] },
+      { id: 'roommates', label: 'Who do you mostly live with?', type: 'select', options: ['Friends', 'Partner', 'Family', 'Alone'] },
+      { id: 'course_demand', label: 'On a scale of 1–5, how demanding is your course?', type: 'select', options: ['1', '2', '3', '4', '5'] },
+      { id: 'support', label: 'Do you feel supported academically?', type: 'select', options: ['Yes', 'No', 'Somewhat'] },
+      { id: 'overwhelm', label: 'How often do you feel overwhelmed?', type: 'select', options: ['Rarely', 'Occasionally', 'Frequently', 'Always'] },
+      { id: 'emotional_difficulty', label: 'Have you experienced emotional difficulty or loneliness?', type: 'select', options: ['Yes', 'No', 'Prefer not to say'] },
+      { id: 'stress_cause', label: 'What contributes most to your emotional state?', type: 'select', options: ['Homesickness', 'Academic pressure', 'Financial struggles', 'Relationship issues', 'Health', 'Other'] },
+      { id: 'sleep', label: 'Average sleep per day?', type: 'select', options: ['<4', '4–6', '7–8', '>8'] },
+      { id: 'meals', label: 'Do you skip meals due to schedule?', type: 'select', options: ['Yes', 'No'] },
+      { id: 'exercise', label: 'How often do you exercise?', type: 'select', options: ['Never', 'Occasionally', 'Regularly'] },
+      { id: 'stimulants', label: 'Do you use energy drinks or stimulants?', type: 'select', options: ['Yes', 'No'] },
+      { id: 'clinic_visits', label: 'How many times have you visited the clinic this semester?', type: 'number' },
+      { id: 'visit_reason', label: 'Main reason for last clinic visit?', type: 'select', options: ['Headache', 'Fatigue', 'Cold/Flu', 'Injury', 'Stomach issue', 'Other'] },
+      { id: 'cause_type', label: 'Do you think your reason was physical, emotional or both?', type: 'select', options: ['Physical', 'Emotional', 'Both', 'Unsure'] },
+      { id: 'resolved', label: 'Was the issue resolved?', type: 'select', options: ['Yes', 'Partially', 'No'] },
+      { id: 'feedback', label: 'Any suggestions to improve the clinic?', type: 'text' }
+    ];
+
+    let currentIndex = 0;
+    const form = document.getElementById('surveyForm');
+    const container = document.getElementById('questionContainer');
+    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const thankYou = document.getElementById('thankYouMessage');
+    const responses = [];
+
+    function showQuestion(index) {
+      container.innerHTML = '';
+      const q = questions[index];
+      const div = document.createElement('div');
+      div.className = 'question active';
+
+      const label = document.createElement('label');
+      label.innerText = q.label;
+      div.appendChild(label);
+
+      let input;
+      if (q.type === 'select') {
+        input = document.createElement('select');
+        q.options.forEach(opt => {
+          const option = document.createElement('option');
+          option.value = opt;
+          option.text = opt;
+          input.appendChild(option);
+        });
+      } else if (q.type === 'text') {
+        input = document.createElement('textarea');
+      } else {
+        input = document.createElement('input');
+        input.type = q.type;
+      }
+      input.id = q.id;
+      input.required = q.required !== false;
+      if (responses[index]) input.value = Object.values(responses[index])[0];
+      div.appendChild(input);
+      container.appendChild(div);
+
+      prevBtn.style.display = currentIndex > 0 ? 'inline-block' : 'none';
+    }
+
+    nextBtn.addEventListener('click', () => {
+      const input = document.getElementById(questions[currentIndex].id);
+      if (!input.checkValidity()) return input.reportValidity();
+      responses[currentIndex] = { [questions[currentIndex].id]: input.value };
+      currentIndex++;
+      if (currentIndex < questions.length) {
+        showQuestion(currentIndex);
+        if (currentIndex === questions.length - 1) {
+          nextBtn.style.display = 'none';
+          submitBtn.style.display = 'inline-block';
+        }
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        showQuestion(currentIndex);
+        nextBtn.style.display = 'inline-block';
+        submitBtn.style.display = 'none';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById(questions[currentIndex].id);
+      responses[currentIndex] = { [questions[currentIndex].id]: input.value };
+      const position = await getLocation();
+      const date = new Date().toISOString();
+      const flat = Object.assign({}, ...responses, { date, latitude: position.lat, longitude: position.lon });
+      let stored = JSON.parse(localStorage.getItem('clinic_data') || '[]');
+      stored.push(flat);
+      localStorage.setItem('clinic_data', JSON.stringify(stored));
+      form.style.display = 'none';
+      thankYou.style.display = 'block';
+    });
+
+    async function getLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return resolve({ lat: '', lon: '' });
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          err => resolve({ lat: '', lon: '' })
+        );
+      });
+    }
+
+    function downloadCSV() {
+      let data = JSON.parse(localStorage.getItem('clinic_data') || '[]');
+      if (data.length === 0) return alert("No data to export.");
+      const headers = Object.keys(data[0]);
+      const csv = [headers.join(",")];
+      for (let row of data) {
+        csv.push(headers.map(h => JSON.stringify(row[h] || "")).join(","));
+      }
+      const blob = new Blob([csv.join("\n")], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "clinic_data.csv";
+      a.click();
+    }
+
+    showQuestion(currentIndex);
+  </script>
+</body>
+</html>
